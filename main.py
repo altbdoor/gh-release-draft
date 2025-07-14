@@ -9,6 +9,7 @@
 import argparse
 import difflib
 from getpass import getpass
+import itertools
 import os
 import subprocess
 from github import Github, Auth
@@ -98,7 +99,10 @@ def main(repo_name: str):
             tofile="New draft",
         )
 
-        if not list(release_diff):
+        try:
+            first_line = next(release_diff)
+            release_diff = itertools.chain([first_line], release_diff)
+        except StopIteration:
             print("No updates to the release note")
             print("Exiting")
             return
