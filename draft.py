@@ -216,7 +216,16 @@ def _repo_arg_validator(value: str) -> str:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description=(
+            "A highly opinionated way of creating/updating GitHub release.\n\n"
+            "Examples:\n"
+            "    python %(prog)s -h\n"
+            "    GH_TOKEN='****' python %(prog)s -r mojombo/jekyll\n"
+            "    NOCOLOR=1 GH_TOKEN='****' python %(prog)s -r mojombo/jekyll\n"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
     parser.add_argument(
         "-r",
         "--repo",
