@@ -7,6 +7,7 @@
 # ///
 
 import argparse
+from dataclasses import dataclass
 import difflib
 from getpass import getpass
 import itertools
@@ -41,7 +42,7 @@ def main(repo_name: str):
             pass
 
     if not gh_token:
-        gh_token = getpass("Enter GitHub token: ")
+        gh_token = getpass("> Enter GitHub token: ")
 
     if not gh_token:
         raise Exception("Unable to get GitHub token")
@@ -49,10 +50,12 @@ def main(repo_name: str):
     auth = Auth.Token(gh_token)
     client = Github(auth=auth)
 
-    release_data = {
-        "draft": "",
-        "minor": "",
-    }
+    @dataclass
+    class ReleaseData:
+        draft: str
+        minor: str
+
+    release_data = ReleaseData("", "")
 
     print(f"Obtaining release info for {repo_name}...")
     repo_ref = client.get_repo(repo_name)
@@ -60,22 +63,22 @@ def main(repo_name: str):
     draft_release = None
 
     for r in releases:
-        if release_data["draft"] == "" and r.draft:
-            release_data["draft"] = r.tag_name
+        if release_data.draft == "" and r.draft:
+            release_data.draft = r.tag_name
             draft_release = r
 
-        if release_data["minor"] == "" and not r.draft and r.tag_name.endswith(".0"):
-            release_data["minor"] = r.tag_name
+        if release_data.minor == "" and not r.draft and r.tag_name.endswith(".0"):
+            release_data.minor = r.tag_name
 
-        if all(v != "" for v in release_data.values()):
+        if release_data.draft != "" and release_data.minor != "":
             break
 
     print(BORDER)
-    print(f"Latest draft: {release_data['draft'] or '(NONE)'}")
-    print(f"Latest minor: {release_data['minor'] or '(NONE)'}")
+    print(f"Latest draft: {release_data.draft or '(NONE)'}")
+    print(f"Latest minor: {release_data.minor or '(NONE)'}")
     print(BORDER)
 
-    if release_data["draft"]:
+    if release_data.draft:
         confirm_update = input("> Update old draft release? [y/N]: ").strip().lower()
         if confirm_update not in ("y", "yes"):
             print("Exiting")
@@ -89,7 +92,7 @@ def main(repo_name: str):
 
         print("Generating release notes...")
         next_release_note = _generate_release_note(
-            repo_ref, release_data["minor"], release_data["draft"]
+            repo_ref, release_data.minor, release_data.draft
         )
 
         release_diff = difflib.unified_diff(
@@ -126,13 +129,13 @@ def main(repo_name: str):
 
         print("Updating existing draft release...")
         updated_minor = draft_release.update_release(
-            name=release_data["draft"], message=next_release_note, draft=True
+            name=release_data.draft, message=next_release_note, draft=True
         )
 
         print(f"Updated draft release in {updated_minor.html_url}")
         print("Exiting")
 
-    elif release_data["minor"]:
+    elif release_data.minor:
         confirm_create = input("> Create new draft release? [y/N]: ").strip().lower()
         if confirm_create not in ("y", "yes"):
             print("Exiting")
@@ -140,7 +143,7 @@ def main(repo_name: str):
 
         next_release = ""
         try:
-            next_release_parts = release_data["minor"].rsplit(".")
+            next_release_parts = release_data.minor.rsplit(".")
             if len(next_release_parts) != 3:
                 raise Exception("minor release not in semver")
 
@@ -157,9 +160,9 @@ def main(repo_name: str):
                 input("> Type in your desired next release version: ").strip().lower()
             )
 
-        print(f"Generating release notes {release_data['minor']} -> {next_release}...")
+        print(f"Generating release notes {release_data.minor} -> {next_release}...")
         release_note = _generate_release_note(
-            repo_ref, release_data["minor"], next_release
+            repo_ref, release_data.minor, next_release
         )
         print(BORDER)
         print(release_note)
